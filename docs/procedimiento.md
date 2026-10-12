@@ -37,17 +37,14 @@ build.bat PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
 Opción B: Entornos Linux / Bash / CI/CD (build.sh)
 
 ```sh
-# 1. Leer versión desde el archivo
-VERSION=$(cat ../version/version.txt)
-
-# 2. Ejecutar docker build
-docker build \
-  --build-arg PROXYLESS=N \
-  --build-arg HTTP_PROXY=http://1.1.1.1:80 \
-  --build-arg HTTPS_PROXY=http://1.1.1.1:80 \
-  -t ogdivan/appmin-py:${VERSION} \
-  -f Dockerfile_image_base .
+# Ancla las rutas a su propia ubicación (puede ejecutarse desde cualquier carpeta)
+# y lee la versión de version/VERSION.txt automáticamente.
+./build.sh PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
 ```
+
+Equivalencia: `build.sh` construye con contexto en la raíz del proyecto
+(`-t ogdivan/appmin-py:<versión> <raíz>`), sin parámetro `-f` porque el
+`Dockerfile` se resuelve por defecto en la raíz del contexto.
 
 ---
 
@@ -84,7 +81,62 @@ Una vez aprobada la auditoría de seguridad:
 
 ---
 
-## 6. Análisis Crítico y Mejores Prácticas
+## 6. Backup y Restauración de la Imagen
+
+El respaldo consiste en exportar la imagen construida a un archivo `.tar` (offline)
+para poder reimportarla en otro equipo o tras una limpieza de imágenes.
+
+> Todos los scripts anclan las rutas a su propia ubicación, por lo que pueden
+> ejecutarse desde cualquier carpeta del sistema.
+
+### 6.1 Respaldo (backup)
+
+Windows (`build\win\backup.bat`):
+
+```cmd
+backup.bat
+backup.bat VERSION=1.0.0
+backup.bat BACKUP_DIR=D:\respaldos
+```
+
+Linux (`build/linux/backup.sh`):
+
+```sh
+./backup.sh
+```
+
+El script:
+
+1. Determina la versión desde `version/VERSION.txt` (o el parámetro `VERSION`).
+2. Crea la carpeta `backups/` en la raíz del proyecto si no existe.
+3. Verifica que la imagen `ogdivan/appmin-py:<versión>` exista localmente.
+4. La exporta con `docker save -o backups/ogdivan_appmin-py_<versión>.tar`.
+
+Parámetros: `VERSION`, `IMAGE` (por defecto `ogdivan/appmin-py`) y
+`BACKUP_DIR` (por defecto `backups/`).
+
+### 6.2 Restauración (restore)
+
+Windows (`build\win\restore.bat`):
+
+```cmd
+restore.bat
+restore.bat VERSION=1.0.0
+restore.bat FILE=backups\ogdivan_appmin-py_1.0.0.tar
+```
+
+Linux (`build/linux/restore.sh`):
+
+```sh
+./restore.sh
+```
+
+El script reimporta la imagen con `docker load -i <archivo>.tar`. Si no se indica
+`FILE`, deduce el `.tar` a partir de `VERSION` (o `version/VERSION.txt`) e `IMAGE`.
+
+---
+
+## 7. Análisis Crítico y Mejores Prácticas
 
 ### Recomendaciones para Dockerfile
 1. Imagen Base Estable: Cambiar python:3.14.8-slim-trixie por una versión oficial estable como python:3.12-slim-bookworm para evitar inestabilidades de versiones no lanzadas oficialmente o repositorios testing.
@@ -97,7 +149,7 @@ Una vez aprobada la auditoría de seguridad:
 
 ---
 
-## 7. Anexo: Archivos Propuestos de Producción
+## 8. Anexo: Archivos Propuestos de Producción
 
 ### A. Dockerfile Optimizado (Dockerfile_image_base.opt)
 

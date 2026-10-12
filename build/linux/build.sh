@@ -1,101 +1,93 @@
-@echo off
-setlocal enabledelayedexpansion
+#!/usr/bin/env bash
+#
+# Build de la imagen Docker ogdivan/appmin-py.
+# Ancla las rutas a su propia ubicación: puede ejecutarse desde cualquier carpeta.
+#
+set -euo pipefail
 
-REM ================================================
-REM Cambiar página de códigos a UTF‑8 para acentos
-REM ================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-REM ================================================
-REM Función de ayuda
-REM ================================================
-if "%1"=="--help" (
-    echo Uso:
-    echo   build.bat PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
-    echo.
-    echo Argumentos disponibles:
-    echo   PROXYLESS=N     Desactiva proxy si es N ^(no sensible a mayúsculas^)
-    echo   HTTP_PROXY=     Proxy HTTP para el build
-    echo   HTTPS_PROXY=    Proxy HTTPS para el build
-    echo.
-    echo Ejemplos:
-    echo   build.bat
-    echo   build.bat PROXYLESS=N HTTP_PROXY=http://10.0.0.1:8080 HTTPS_PROXY=http://10.0.0.1:8080
-    exit /b 0
-)
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'EOF'
+Uso:
+  build.sh PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
 
-REM ================================================
-REM 1. Leer versión
-REM ================================================
-set VERSION_FILE=..\version\version.txt
+Argumentos disponibles:
+  PROXYLESS=N     Desactiva proxy si es N (no sensible a mayúsculas)
+  HTTP_PROXY=     Proxy HTTP para el build
+  HTTPS_PROXY=    Proxy HTTPS para el build
 
-if not exist "%VERSION_FILE%" (
-    echo ERROR: No existe el archivo de versión: %VERSION_FILE%
-    exit /b 1
-)
+Ejemplos:
+  build.sh
+  build.sh PROXYLESS=N HTTP_PROXY=http://10.0.0.1:8080 HTTPS_PROXY=http://10.0.0.1:8080
+EOF
+    exit 0
+fi
 
-for /f "usebackq delims=" %%v in ("%VERSION_FILE%") do (
-    set VERSION=%%v
-)
+# Valores por defecto (equivalentes a build.bat; se sobrescriben por argumento)
+PROXYLESS="N"
+HTTP_PROXY="http://1.1.1.1:80"
+HTTPS_PROXY="http://1.1.1.1:80"
 
-REM ================================================
-REM 2. Valores por defecto
-REM ================================================
-set PROXYLESS=N
-set HTTP_PROXY=http://1.1.1.1:80
-set HTTPS_PROXY=http://1.1.1.1:80
+# Procesar argumentos CLAVE=valor
+for arg in "$@"; do
+    if [[ "$arg" != *=* ]]; then
+        echo "Parametro desconocido: $arg" >&2
+        exit 1
+    fi
+    key="${arg%%=*}"
+    value="${arg#*=}"
+    case "$(echo "$key" | tr '[:lower:]' '[:upper:]')" in
+        PROXYLESS)   PROXYLESS="$value" ;;
+        HTTP_PROXY)  HTTP_PROXY="$value" ;;
+        HTTPS_PROXY) HTTPS_PROXY="$value" ;;
+        *)
+            echo "Parametro desconocido: $arg" >&2
+            exit 1
+            ;;
+    esac
+    echo "Procesando argumento: $key = $value"
+done
 
-REM ================================================
-REM 3. Procesar argumentos clave=valor
-REM ================================================
-:parse
-if "%~1"=="" goto :endparse
-if /i "%~1"=="PROXYLESS" (
-    set "PROXYLESS=%~2"
-) else if /i "%~1"=="HTTP_PROXY" (
-    set "HTTP_PROXY=%~2"
-) else if /i "%~1"=="HTTPS_PROXY" (
-    set "HTTPS_PROXY=%~2"
-) else (
-    echo Parametro desconocido: %~1
-    exit /b 1
-)
-echo Procesando argumento: %~1 = %~2
-shift
-shift
-goto :parse
-:endparse
+# Validación sintáctica
+LOWER="$(echo "$PROXYLESS" | tr '[:upper:]' '[:lower:]')"
+if [[ "$LOWER" != "y" && "$LOWER" != "n" ]]; then
+    echo "ERROR: PROXYLESS debe ser Y o N" >&2
+    exit 1
+fi
 
-REM ================================================
-REM 4. Validación sintáctica
-REM ================================================
-set LOWER=%PROXYLESS%
-set LOWER=%LOWER:Y=y%
-set LOWER=%LOWER:N=n%
+# Leer versión (acepta version.txt o VERSION.txt)
+VERSION_FILE=""
+for candidate in "$ROOT_DIR/version/version.txt" "$ROOT_DIR/version/VERSION.txt"; do
+    if [[ -f "$candidate" ]]; then
+        VERSION_FILE="$candidate"
+        break
+    fi
+done
+if [[ -z "$VERSION_FILE" ]]; then
+    echo "ERROR: No existe el archivo de versión en $ROOT_DIR/version" >&2
+    exit 1
+fi
+VERSION="$(tr -d '\r\n' < "$VERSION_FILE")"
 
-if not "%LOWER%"=="y" if not "%LOWER%"=="n" (
-    echo ERROR: PROXYLESS debe ser Y o N
-    exit /b 1
-)
+echo "================================================"
+echo "VERSION:     $VERSION"
+echo "PROXYLESS:   $PROXYLESS"
+echo "HTTP_PROXY:  $HTTP_PROXY"
+echo "HTTPS_PROXY: $HTTPS_PROXY"
+echo "================================================"
 
-echo ================================================
-echo VERSION: %VERSION%
-echo PROXYLESS: %PROXYLESS%
-echo HTTP_PROXY: %HTTP_PROXY%
-echo HTTPS_PROXY: %HTTPS_PROXY%
-echo ================================================
-
-REM ================================================
-REM 5. Ejecutar docker build
-REM ================================================
-echo Ejecutando docker build...
-rem echo docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% ..
-
-docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% ..
-
-REM Verificar código de salida
-if %ERRORLEVEL%==0 (
-    echo Build completado exitosamente.
-) else (
-    echo Build fallo.
-    exit /b 1
-)
+# Ejecutar docker build
+echo "Ejecutando docker build..."
+if docker build \
+    --build-arg PROXYLESS="$PROXYLESS" \
+    --build-arg HTTP_PROXY="$HTTP_PROXY" \
+    --build-arg HTTPS_PROXY="$HTTPS_PROXY" \
+    -t "ogdivan/appmin-py:${VERSION}" \
+    "$ROOT_DIR"; then
+    echo "Build completado exitosamente."
+else
+    echo "Build fallo." >&2
+    exit 1
+fi
