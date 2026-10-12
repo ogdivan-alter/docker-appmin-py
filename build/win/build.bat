@@ -2,6 +2,16 @@
 setlocal enabledelayedexpansion
 
 REM ================================================
+REM Anclar rutas a la ubicación de este script
+REM para poder ejecutarlo desde cualquier carpeta.
+REM %~dp0   = carpeta del .bat (build\win\) con barra final
+REM %%~fI   = normaliza a ruta absoluta sin ".."
+REM La raíz del proyecto está dos niveles arriba (build\win).
+REM ================================================
+set "SCRIPT_DIR=%~dp0"
+for %%I in ("%SCRIPT_DIR%..\..") do set "ROOT_DIR=%%~fI"
+
+REM ================================================
 REM Cambiar página de códigos a UTF‑8 para acentos
 REM ================================================
 
@@ -26,7 +36,7 @@ if "%1"=="--help" (
 REM ================================================
 REM 1. Leer versión
 REM ================================================
-set VERSION_FILE=..\version\version.txt
+set VERSION_FILE=%ROOT_DIR%\version\version.txt
 
 if not exist "%VERSION_FILE%" (
     echo ERROR: No existe el archivo de versión: %VERSION_FILE%
@@ -88,9 +98,9 @@ REM ================================================
 REM 5. Ejecutar docker build
 REM ================================================
 echo Ejecutando docker build...
-rem echo docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% ..
+rem echo docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% "%ROOT_DIR%"
 
-docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% ..
+docker build --build-arg PROXYLESS=%PROXYLESS% --build-arg HTTP_PROXY=%HTTP_PROXY% --build-arg HTTPS_PROXY=%HTTPS_PROXY% -t ogdivan/appmin-py:%VERSION% "%ROOT_DIR%"
 
 REM Verificar código de salida
 if %ERRORLEVEL%==0 (

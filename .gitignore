@@ -23,3 +23,6 @@ bundles/
 vendor/pkg/
 pyenv
 Vagrantfile
+
+# Backups de imágenes Docker (artefactos .tar pesados)
+backups/

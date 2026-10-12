@@ -72,6 +72,10 @@ cd build/linux
 ./build.sh --help
 ```
 
+> Los scripts anclan las rutas a su propia ubicación, por lo que también puedes
+> ejecutarlos desde cualquier carpeta, por ejemplo:
+> `F:\...\appmin-py\build\win\build.bat`.
+
 #### Parámetros (todos opcionales, formato `CLAVE=valor`)
 
 | Parámetro | Valor por defecto | Descripción |
@@ -98,17 +102,58 @@ docker run -it --name appmin-py ogdivan/appmin-py:1.0.0 bash
 
 ### 3. Backup y restore
 
+Estos scripts exportan e importan la **imagen Docker** con `docker save` / `docker load`.
+Al igual que `build.bat`, se pueden ejecutar desde cualquier carpeta: resuelven la raíz
+del proyecto a partir de su propia ubicación.
+
 ```powershell
-.\backup.bat    # Windows (build\win)
-.\restore.bat
+# Windows (build\win)
+.\backup.bat     # Exporta ogdivan/appmin-py:<versión> a backups\ogdivan_appmin-py_<versión>.tar
+.\restore.bat    # Reimporta la imagen desde el .tar correspondiente
 ```
 
 ```bash
-./backup.sh     # Debian (build/linux)
+# Debian
+./backup.sh
 ./restore.sh
 ```
 
-<!-- Describe aquí qué respalda y restaura cada script -->
+`backup.bat` crea la carpeta `backups\` en la raíz del proyecto si no existe
+(está ignorada por git para no versionar los `.tar`).
+
+#### Parámetros de `backup.bat` (todos opcionales, formato `CLAVE=valor`)
+
+| Parámetro | Valor por defecto | Descripción |
+|-----------|-------------------|-------------|
+| `VERSION` | contenido de `version/VERSION.txt` | Tag de la imagen a exportar. |
+| `IMAGE` | `ogdivan/appmin-py` | Nombre de la imagen. |
+| `BACKUP_DIR` | `backups` (raíz del proyecto) | Carpeta destino del `.tar`. |
+
+Ejemplo:
+
+```powershell
+.\backup.bat VERSION=1.0.0
+.\backup.bat BACKUP_DIR=D:\respaldos
+```
+
+#### Parámetros de `restore.bat` (todos opcionales, formato `CLAVE=valor`)
+
+| Parámetro | Valor por defecto | Descripción |
+|-----------|-------------------|-------------|
+| `FILE` | — | Ruta directa al `.tar` (tiene prioridad sobre los demás). |
+| `VERSION` | contenido de `version/VERSION.txt` | Versión de la que se deduce el `.tar`. |
+| `IMAGE` | `ogdivan/appmin-py` | Nombre de la imagen. |
+| `BACKUP_DIR` | `backups` (raíz del proyecto) | Carpeta de los `.tar`. |
+
+Ejemplo:
+
+```powershell
+.\restore.bat VERSION=1.0.0
+.\restore.bat FILE=backups\ogdivan_appmin-py_1.0.0.tar
+```
+
+Ambos terminan con código de salida distinto de 0 ante parámetros desconocidos,
+archivo/imagen inexistente o fallo de Docker.
 
 ## 🏷️ Imagen
 
@@ -124,8 +169,10 @@ Ver [`docs/procedimiento.md`](docs/procedimiento.md) para el procedimiento detal
 | Problema | Posible causa / solución |
 |----------|--------------------------|
 | `No existe el archivo de versión` | Revisa la ruta y el nombre de `version/VERSION.txt` (en Linux distingue mayúsculas). |
-| `Parametro desconocido` | Solo se aceptan `PROXYLESS`, `HTTP_PROXY` y `HTTPS_PROXY`. |
+| `Parametro desconocido` | `build` acepta `PROXYLESS`, `HTTP_PROXY`, `HTTPS_PROXY`; `backup`/`restore` aceptan `VERSION`, `IMAGE`, `BACKUP_DIR` (y `restore` además `FILE`). |
 | Build falla por red | Verifica los valores de proxy o usa `PROXYLESS=Y` si no hay proxy. |
+| `La imagen ... no existe localmente` (backup) | Ejecuta primero el build (`build.bat`) para generar la imagen antes de respaldarla. |
+| `No existe el archivo de backup` (restore) | Ejecuta primero `backup.bat` o indica la ruta con `FILE=...`. |
 | `docker: command not found` | Docker no está instalado o no está en el PATH. |
 | `permission denied` (Debian) | Agrega el usuario al grupo `docker` o usa `sudo`. |
 
