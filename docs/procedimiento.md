@@ -37,17 +37,14 @@ build.bat PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
 Opción B: Entornos Linux / Bash / CI/CD (build.sh)
 
 ```sh
-# 1. Leer versión desde el archivo
-VERSION=$(cat ../version/version.txt)
-
-# 2. Ejecutar docker build
-docker build \
-  --build-arg PROXYLESS=N \
-  --build-arg HTTP_PROXY=http://1.1.1.1:80 \
-  --build-arg HTTPS_PROXY=http://1.1.1.1:80 \
-  -t ogdivan/appmin-py:${VERSION} \
-  -f Dockerfile_image_base .
+# Ancla las rutas a su propia ubicación (puede ejecutarse desde cualquier carpeta)
+# y lee la versión de version/VERSION.txt automáticamente.
+./build.sh PROXYLESS=N HTTP_PROXY=http://1.1.1.1:80 HTTPS_PROXY=http://1.1.1.1:80
 ```
+
+Equivalencia: `build.sh` construye con contexto en la raíz del proyecto
+(`-t ogdivan/appmin-py:<versión> <raíz>`), sin parámetro `-f` porque el
+`Dockerfile` se resuelve por defecto en la raíz del contexto.
 
 ---
 
